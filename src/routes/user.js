@@ -1,26 +1,29 @@
-const express = require('express')
-const router = new express.Router()
-const User = require('../models/user')
-const auth = require('../middleware/auth')
+const express = require('express');
+const router = new express.Router();
+const User = require('../models/user');
+const auth = require('../middleware/auth');
+const jwt = require('jsonwebtoken')
 
 router.post('/user', async (req, res) => {
-  const user = new User(req.body)
-  try {
-    await user.save()
-    const token = await user.generateAuthToken()
-    res.status(201).send({user, token})
-  } catch (e) {
-    res.status(400).json(e)
-  }
+	const user = new User(req.body);
+	user.save((err, user) => {
+    if (err) {
+      return res.status(400).json(err)
+    }
+    const token = jwt.sign({_id: user.id}, process.env.SECRET)
+    res.cookie("token", token, {expire: new Date() + 999})
+    res.json({token, user})
+  })
+});
+
+router.get('/users/all', auth, (req, res) => {
+  User.find()
+  .exec((err, user) => {
+    if (err) {
+      return res.status(400).json(err)
+    }
+    res.json(user)
+  })
 })
 
-// router.get('/users/all', auth, async (req, res) => {
-//   try {
-//     const users = await User.find()
-//     res.send({users})
-//   } catch (e) {
-//     res.status(400).json(e)
-//   }
-// })
-
-module.exports = router
+module.exports = router;
